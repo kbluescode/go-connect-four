@@ -12,7 +12,6 @@ import (
 
 const (
 	gridSize    int  = 5
-	turnMax     int  = 10
 	defaultMark rune = ' '
 	p1Mark      rune = 'x'
 	p2Mark      rune = 'o'
@@ -21,7 +20,8 @@ const (
 var (
 	grid    Grid
 	scanner = bufio.NewScanner(os.Stdin)
-	turn    int
+	turn    = 1
+	maxTurn = gridSize * gridSize
 )
 
 // Cell - A single cell in the grid
@@ -30,6 +30,7 @@ type Cell struct {
 	val      rune
 }
 
+// String - to satisfy the Stringer interface for fmt
 func (c *Cell) String() string {
 	return fmt.Sprintf("[%c]", c.val)
 }
@@ -53,11 +54,12 @@ func main() {
 	gameLoop()
 }
 
+// gameLoop - the core game loop, ending if a player wins
 func gameLoop() {
-	currentMark := p1Mark
 	var won bool
-	var mark rune
-	for ; !won; won, mark = hasWon() {
+	var winnerMark rune
+	currentMark := p1Mark
+	for ; !won && turn <= maxTurn; won, winnerMark = hasWon() {
 		fmt.Printf("Current player: '%c'\n\n", currentMark)
 		displayGrid()
 		takeTurn(currentMark)
@@ -66,11 +68,17 @@ func gameLoop() {
 		} else {
 			currentMark = p1Mark
 		}
+		turn++
 	}
-	fmt.Printf("\n\nGame Over:\nPlayer %q has won!\n", mark)
+	if winnerMark == defaultMark {
+		fmt.Println("\n\nGame Over: It's a draw!")
+	} else {
+		fmt.Printf("\n\nGame Over:\nPlayer %q has won!\n", winnerMark)
+	}
 	displayGrid()
 }
 
+// resetGrid - reverts the grid to its base state of blank cells
 func resetGrid() {
 	for row := 0; row < gridSize; row++ {
 		for col := 0; col < gridSize; col++ {
@@ -79,6 +87,7 @@ func resetGrid() {
 	}
 }
 
+// displayGrid - prints out the grid in a human-readable format
 func displayGrid() {
 	buffer := bytes.NewBufferString("   0  1  2  3  4\n")
 	for row := 0; row < gridSize; row++ {
@@ -91,6 +100,7 @@ func displayGrid() {
 	fmt.Println(buffer.String())
 }
 
+// takeTurn - will attempt to get input from the user and display errors if the input is invalid
 func takeTurn(mark rune) {
 	for {
 		if scanner.Scan() {
@@ -110,6 +120,8 @@ func takeTurn(mark rune) {
 	}
 }
 
+// parseCommand - takes a string and tries to produce a game command out of it. Produces valid coordinates if string passes, otherwise returns an error.
+// ex. "0 1"
 func parseCommand(command string) ([]int, error) {
 	var chunks []int
 
@@ -129,7 +141,7 @@ func parseCommand(command string) ([]int, error) {
 	return chunks, nil
 }
 
-// hasWon returns true if any line of 4 of 'x' or 'o' has been made in the grid
+// hasWon - returns true if any line of 4 of 'x' or 'o' has been made in the grid
 func hasWon() (bool, rune) {
 	if fourConnected(p1Mark) {
 		return true, p1Mark
@@ -140,7 +152,7 @@ func hasWon() (bool, rune) {
 	return false, defaultMark
 }
 
-// fourConnected returns true if collection of cells has a contiguous line of 4 or false if length of cells is < 4 or no contiguous line is present
+// fourConnected - returns true if collection of cells has a contiguous line of 4 or false if no contiguous line is present
 func fourConnected(symbol rune) bool {
 	// check horizontal
 	for row := 0; row < gridSize; row++ {
